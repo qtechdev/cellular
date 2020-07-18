@@ -71,6 +71,7 @@ qca::elementary::elementary(const int w, const int h, const rule_set &r)
 }
 
 void qca::elementary::init_single_0() {
+  reset();
   for (int i = 0; i < field_width; ++i) {
     current_generation.push_back(cells.at(1));
   }
@@ -79,6 +80,7 @@ void qca::elementary::init_single_0() {
 }
 
 void qca::elementary::init_single_1() {
+  reset();
   for (int i = 0; i < field_width; ++i) {
     current_generation.push_back(cells.at(0));
   }
@@ -87,12 +89,14 @@ void qca::elementary::init_single_1() {
 }
 
 void qca::elementary::init_alternate() {
+  reset();
   for (int i = 0; i < field_width; ++i) {
     current_generation.push_back(cells.at(i % 2));
   }
 }
 
 void qca::elementary::init_random() {
+  reset();
   std::uniform_int_distribution d{0, 1};
 
   for (int i = 0; i < field_width; ++i) {
