@@ -9,6 +9,8 @@
 #include <sstream>
 #include <string>
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
 #include "glad.h"
 #include <GLFW/glfw3.h>
 
@@ -28,10 +30,12 @@
 #include "util/error.hpp"
 #include "util/timer.hpp"
 
-static constexpr int window_width = 1600;
-static constexpr int window_height = 800;
+static constexpr int window_width = 400;
+static constexpr int window_height = 200;
 static constexpr int gl_major_version = 3;
 static constexpr int gl_minor_version = 3;
+
+static int wolfram_code = 0;
 
 struct key {
   int key_code;
@@ -46,11 +50,17 @@ static key key_reset_single_0{GLFW_KEY_0, "0"};
 static key key_reset_single_1{GLFW_KEY_1, "1"};
 static key key_reset_alternate{GLFW_KEY_A, "A"};
 static key key_reset_random{GLFW_KEY_R, "R"};
+static key key_save{GLFW_KEY_S, "S"};
+static key key_next{GLFW_KEY_RIGHT_BRACKET , "]"};
+static key key_prev{GLFW_KEY_LEFT_BRACKET , "["};
 
 constexpr timing::seconds loop_timestep(1.0/60.0);
 
 void processInput(GLFWwindow *window);
 std::array<glm::mat4, 3> fullscreen_rect_matrices(const int w, const int h);
+void reset_texture(
+  const Texture &t, const int w, const int h, const std::vector<uint8_t> &d
+);
 
 int main(int argc, const char *argv[]) {
   // get base directories
@@ -131,6 +141,11 @@ int main(int argc, const char *argv[]) {
   bool is_paused = false;
   bool is_single_step = false;
   int gen_count = 0;
+  std::vector<uint8_t> blank_texture;
+  blank_texture.resize(ca.field_width * ca.field_height * 3);
+
+  std::vector<uint8_t> full_texture_data;
+  full_texture_data.resize(ca.field_width * ca.field_height * 3);
 
   while (!glfwWindowShouldClose(window)) {
     loop_accumulator += loop_timer.getDelta();
@@ -175,9 +190,11 @@ int main(int argc, const char *argv[]) {
       (glfwGetKey(window, key_reset_single_0.key_code) == GLFW_PRESS) &&
       !key_reset_single_0.is_handled
     ) {
+      reset_texture(texture, ca.field_width, ca.field_height, blank_texture);
       ca.reset();
       ca.init_single_0();
       gen_count = 0;
+      is_paused = false;
       key_reset_single_0.is_pressed = true;
       key_reset_single_0.is_handled = true;
     }
@@ -191,9 +208,11 @@ int main(int argc, const char *argv[]) {
       (glfwGetKey(window, key_reset_single_1.key_code) == GLFW_PRESS) &&
       !key_reset_single_1.is_handled
     ) {
+      reset_texture(texture, ca.field_width, ca.field_height, blank_texture);
       ca.reset();
       ca.init_single_1();
       gen_count = 0;
+      is_paused = false;
       key_reset_single_1.is_pressed = true;
       key_reset_single_1.is_handled = true;
     }
@@ -207,9 +226,11 @@ int main(int argc, const char *argv[]) {
       (glfwGetKey(window, key_reset_alternate.key_code) == GLFW_PRESS) &&
       !key_reset_alternate.is_handled
     ) {
+      reset_texture(texture, ca.field_width, ca.field_height, blank_texture);
       ca.reset();
       ca.init_alternate();
       gen_count = 0;
+      is_paused = false;
       key_reset_alternate.is_pressed = true;
       key_reset_alternate.is_handled = true;
     }
@@ -223,9 +244,11 @@ int main(int argc, const char *argv[]) {
       (glfwGetKey(window, key_reset_random.key_code) == GLFW_PRESS) &&
       !key_reset_random.is_handled
     ) {
+      reset_texture(texture, ca.field_width, ca.field_height, blank_texture);
       ca.reset();
       ca.init_random();
       gen_count = 0;
+      is_paused = false;
       key_reset_random.is_pressed = true;
       key_reset_random.is_handled = true;
     }
@@ -233,6 +256,57 @@ int main(int argc, const char *argv[]) {
     if(glfwGetKey(window, key_reset_random.key_code) == GLFW_RELEASE) {
       key_reset_random.is_pressed = false;
       key_reset_random.is_handled = false;
+    }
+
+    if(
+      (glfwGetKey(window, key_save.key_code) == GLFW_PRESS) &&
+      !key_save.is_handled
+    ) {
+      stbi_write_png(
+        "out.png", ca.field_width, ca.field_height, 3,
+        full_texture_data.data(), ca.field_width * 3
+      );
+      key_save.is_pressed = true;
+      key_save.is_handled = true;
+    }
+
+    if(glfwGetKey(window, key_save.key_code) == GLFW_RELEASE) {
+      key_save.is_pressed = false;
+      key_save.is_handled = false;
+    }
+
+    if(
+      (glfwGetKey(window, key_next.key_code) == GLFW_PRESS) &&
+      !key_next.is_handled
+    ) {
+      wolfram_code++;
+      if (wolfram_code > 255) { wolfram_code = 0; }
+      ca.set_rules(qca::wolfram(wolfram_code));
+      std::cout << "Wolfram Code: " << wolfram_code << "\n";
+      key_next.is_pressed = true;
+      key_next.is_handled = true;
+    }
+
+    if(glfwGetKey(window, key_next.key_code) == GLFW_RELEASE) {
+      key_next.is_pressed = false;
+      key_next.is_handled = false;
+    }
+
+    if(
+      (glfwGetKey(window, key_prev.key_code) == GLFW_PRESS) &&
+      !key_prev.is_handled
+    ) {
+      wolfram_code--;
+      if (wolfram_code < 0) { wolfram_code = 255; }
+      ca.set_rules(qca::wolfram(wolfram_code));
+      std::cout << "Wolfram Code: " << wolfram_code << "\n";
+      key_prev.is_pressed = true;
+      key_prev.is_handled = true;
+    }
+
+    if(glfwGetKey(window, key_prev.key_code) == GLFW_RELEASE) {
+      key_prev.is_pressed = false;
+      key_prev.is_handled = false;
     }
 
     // update loop
@@ -255,6 +329,10 @@ int main(int argc, const char *argv[]) {
       ca.next();
 
       std::vector<uint8_t> texture_data = qca::cells_to_colour(gen);
+      for (int i = 0; i < texture_data.size(); ++i) {
+        const int index = (gen_count * ca.field_width * 3) + i;
+        full_texture_data[index] = texture_data[i];
+      }
 
       bindTexture(texture);
       glTexSubImage2D(
@@ -295,4 +373,15 @@ std::array<glm::mat4, 3> fullscreen_rect_matrices(const int w, const int h) {
   model = glm::scale(model, glm::vec3(w, h, 1));
 
   return {projection, view, model};
+}
+
+void reset_texture(
+  const Texture &t, const int w, const int h, const std::vector<uint8_t> &d
+) {
+  bindTexture(t);
+  glTexSubImage2D(
+    GL_TEXTURE_2D, 0, 0, 0, w, h,
+    GL_RGB, GL_UNSIGNED_BYTE, d.data()
+  );
+  bindTexture({0});
 }

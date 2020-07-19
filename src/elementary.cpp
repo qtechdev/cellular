@@ -104,6 +104,10 @@ void qca::elementary::init_random() {
   }
 }
 
+void qca::elementary::set_rules(const rule_set &r) {
+  rules = r;
+}
+
 qca::generation qca::elementary::get() const {
   return current_generation;
 }
@@ -132,7 +136,7 @@ void qca::elementary::next() {
     next_index |= parents[1].state << 8;
     next_index |= parents[2].state;
 
-    next_generation[i] = rules.at(next_index);
+    next_generation[i] = working_rules.at(next_index);
   }
 
   current_generation = next_generation;
@@ -140,4 +144,5 @@ void qca::elementary::next() {
 
 void qca::elementary::reset() {
   current_generation.clear();
+  working_rules = rules;
 }

@@ -33,6 +33,7 @@ namespace qca {
     void init_single_1();
     void init_alternate();
     void init_random();
+    void set_rules(const rule_set &r);
 
     generation get() const;
     void next();
@@ -43,6 +44,7 @@ namespace qca {
   private:
     generation current_generation;
     rule_set rules;
+    rule_set working_rules;
 
     std::mt19937 engine;
   };
