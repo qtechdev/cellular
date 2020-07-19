@@ -6,7 +6,7 @@ CXX=g++
 LD_FLAGS=-ldl -lGL -lglfw -L./lib -lglad -lqfio -lqxdg
 CXX_FLAGS=-std=c++17 -I./include
 
-NAME=opengl
+NAME=cellular
 BINARY=out/${NAME}
 
 ifdef DEBUG
