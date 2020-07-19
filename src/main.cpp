@@ -35,6 +35,8 @@ static constexpr int window_height = 200;
 static constexpr int gl_major_version = 3;
 static constexpr int gl_minor_version = 3;
 
+static int wolfram_code = 0;
+
 struct key {
   int key_code;
   std::string name;
@@ -49,6 +51,8 @@ static key key_reset_single_1{GLFW_KEY_1, "1"};
 static key key_reset_alternate{GLFW_KEY_A, "A"};
 static key key_reset_random{GLFW_KEY_R, "R"};
 static key key_save{GLFW_KEY_S, "S"};
+static key key_next{GLFW_KEY_RIGHT_BRACKET , "]"};
+static key key_prev{GLFW_KEY_LEFT_BRACKET , "["};
 
 constexpr timing::seconds loop_timestep(1.0/60.0);
 
@@ -255,6 +259,40 @@ int main(int argc, const char *argv[]) {
     if(glfwGetKey(window, key_save.key_code) == GLFW_RELEASE) {
       key_save.is_pressed = false;
       key_save.is_handled = false;
+    }
+
+    if(
+      (glfwGetKey(window, key_next.key_code) == GLFW_PRESS) &&
+      !key_next.is_handled
+    ) {
+      wolfram_code++;
+      if (wolfram_code > 255) { wolfram_code = 0; }
+      ca.set_rules(qca::wolfram(wolfram_code));
+      std::cout << "Wolfram Code: " << wolfram_code << "\n";
+      key_next.is_pressed = true;
+      key_next.is_handled = true;
+    }
+
+    if(glfwGetKey(window, key_next.key_code) == GLFW_RELEASE) {
+      key_next.is_pressed = false;
+      key_next.is_handled = false;
+    }
+
+    if(
+      (glfwGetKey(window, key_prev.key_code) == GLFW_PRESS) &&
+      !key_prev.is_handled
+    ) {
+      wolfram_code--;
+      if (wolfram_code < 0) { wolfram_code = 255; }
+      ca.set_rules(qca::wolfram(wolfram_code));
+      std::cout << "Wolfram Code: " << wolfram_code << "\n";
+      key_prev.is_pressed = true;
+      key_prev.is_handled = true;
+    }
+
+    if(glfwGetKey(window, key_prev.key_code) == GLFW_RELEASE) {
+      key_prev.is_pressed = false;
+      key_prev.is_handled = false;
     }
 
     // update loop

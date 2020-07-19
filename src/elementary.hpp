@@ -33,6 +33,7 @@ namespace qca {
     void init_single_1();
     void init_alternate();
     void init_random();
+    void set_rules(const rule_set &r);
 
     generation get() const;
     void next();

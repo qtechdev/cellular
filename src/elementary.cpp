@@ -104,6 +104,10 @@ void qca::elementary::init_random() {
   }
 }
 
+void qca::elementary::set_rules(const rule_set &r) {
+  rules = r;
+}
+
 qca::generation qca::elementary::get() const {
   return current_generation;
 }
