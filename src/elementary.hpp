@@ -44,6 +44,7 @@ namespace qca {
   private:
     generation current_generation;
     rule_set rules;
+    rule_set working_rules;
 
     std::mt19937 engine;
   };

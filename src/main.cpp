@@ -58,6 +58,9 @@ constexpr timing::seconds loop_timestep(1.0/60.0);
 
 void processInput(GLFWwindow *window);
 std::array<glm::mat4, 3> fullscreen_rect_matrices(const int w, const int h);
+void reset_texture(
+  const Texture &t, const int w, const int h, const std::vector<uint8_t> &d
+);
 
 int main(int argc, const char *argv[]) {
   // get base directories
@@ -138,6 +141,9 @@ int main(int argc, const char *argv[]) {
   bool is_paused = false;
   bool is_single_step = false;
   int gen_count = 0;
+  std::vector<uint8_t> blank_texture;
+  blank_texture.resize(ca.field_width * ca.field_height * 3);
+
   std::vector<uint8_t> full_texture_data;
   full_texture_data.resize(ca.field_width * ca.field_height * 3);
 
@@ -184,9 +190,11 @@ int main(int argc, const char *argv[]) {
       (glfwGetKey(window, key_reset_single_0.key_code) == GLFW_PRESS) &&
       !key_reset_single_0.is_handled
     ) {
+      reset_texture(texture, ca.field_width, ca.field_height, blank_texture);
       ca.reset();
       ca.init_single_0();
       gen_count = 0;
+      is_paused = false;
       key_reset_single_0.is_pressed = true;
       key_reset_single_0.is_handled = true;
     }
@@ -200,9 +208,11 @@ int main(int argc, const char *argv[]) {
       (glfwGetKey(window, key_reset_single_1.key_code) == GLFW_PRESS) &&
       !key_reset_single_1.is_handled
     ) {
+      reset_texture(texture, ca.field_width, ca.field_height, blank_texture);
       ca.reset();
       ca.init_single_1();
       gen_count = 0;
+      is_paused = false;
       key_reset_single_1.is_pressed = true;
       key_reset_single_1.is_handled = true;
     }
@@ -216,9 +226,11 @@ int main(int argc, const char *argv[]) {
       (glfwGetKey(window, key_reset_alternate.key_code) == GLFW_PRESS) &&
       !key_reset_alternate.is_handled
     ) {
+      reset_texture(texture, ca.field_width, ca.field_height, blank_texture);
       ca.reset();
       ca.init_alternate();
       gen_count = 0;
+      is_paused = false;
       key_reset_alternate.is_pressed = true;
       key_reset_alternate.is_handled = true;
     }
@@ -232,9 +244,11 @@ int main(int argc, const char *argv[]) {
       (glfwGetKey(window, key_reset_random.key_code) == GLFW_PRESS) &&
       !key_reset_random.is_handled
     ) {
+      reset_texture(texture, ca.field_width, ca.field_height, blank_texture);
       ca.reset();
       ca.init_random();
       gen_count = 0;
+      is_paused = false;
       key_reset_random.is_pressed = true;
       key_reset_random.is_handled = true;
     }
@@ -359,4 +373,15 @@ std::array<glm::mat4, 3> fullscreen_rect_matrices(const int w, const int h) {
   model = glm::scale(model, glm::vec3(w, h, 1));
 
   return {projection, view, model};
+}
+
+void reset_texture(
+  const Texture &t, const int w, const int h, const std::vector<uint8_t> &d
+) {
+  bindTexture(t);
+  glTexSubImage2D(
+    GL_TEXTURE_2D, 0, 0, 0, w, h,
+    GL_RGB, GL_UNSIGNED_BYTE, d.data()
+  );
+  bindTexture({0});
 }
