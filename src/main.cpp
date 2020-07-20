@@ -32,7 +32,7 @@
 #include "util/error.hpp"
 #include "util/timer.hpp"
 
-static constexpr int window_width = 400;
+static constexpr int window_width = 800;
 static constexpr int window_height = 200;
 static constexpr int gl_major_version = 3;
 static constexpr int gl_minor_version = 3;
@@ -87,7 +87,7 @@ int main(int argc, const char *argv[]) {
   GLuint shader_program = createProgram(v_shader, f_shader, true);
 
   // initialise automata
-  qca::elementary ca(window_width, window_height, qca::wolfram(110));
+  qca::elementary ca(window_width, window_height, qca::wolfram(73));
   ca.init_random();
 
   // initialise texture
@@ -130,8 +130,6 @@ int main(int argc, const char *argv[]) {
 
   game_state state;
 
-
-
   while (!glfwWindowShouldClose(window)) {
     loop_accumulator += loop_timer.getDelta();
     loop_timer.tick(clock.get());
@@ -157,7 +155,7 @@ int main(int argc, const char *argv[]) {
 
     if (state.do_save_texture) {
       std::stringstream ss;
-      ss << state.wolfram_code << ".png";
+      ss << "out/" << state.wolfram_code << ".png";
       stbi_write_png(
         ss.str().c_str(), ca.field_width, ca.field_height, 3,
         full_texture_data.data(), ca.field_width * 3
