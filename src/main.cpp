@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <iostream>
 #include <limits>
 #include <map>
@@ -22,6 +23,7 @@
 #include <qfio/qfio.hpp>
 
 #include "elementary.hpp"
+#include "keys.hpp"
 
 #include "gl/rect.hpp"
 #include "gl/shader_program.hpp"
@@ -30,29 +32,11 @@
 #include "util/error.hpp"
 #include "util/timer.hpp"
 
-static constexpr int window_width = 400;
+static constexpr int window_width = 800;
 static constexpr int window_height = 200;
 static constexpr int gl_major_version = 3;
 static constexpr int gl_minor_version = 3;
 
-static int wolfram_code = 0;
-
-struct key {
-  int key_code;
-  std::string name;
-  bool is_pressed = false;
-  bool is_handled = false;
-};
-
-static key key_pause{GLFW_KEY_SPACE, "SPACEBAR"};
-static key key_step{GLFW_KEY_PERIOD, ">"};
-static key key_reset_single_0{GLFW_KEY_0, "0"};
-static key key_reset_single_1{GLFW_KEY_1, "1"};
-static key key_reset_alternate{GLFW_KEY_A, "A"};
-static key key_reset_random{GLFW_KEY_R, "R"};
-static key key_save{GLFW_KEY_S, "S"};
-static key key_next{GLFW_KEY_RIGHT_BRACKET , "]"};
-static key key_prev{GLFW_KEY_LEFT_BRACKET , "["};
 
 constexpr timing::seconds loop_timestep(1.0/60.0);
 
@@ -103,7 +87,7 @@ int main(int argc, const char *argv[]) {
   GLuint shader_program = createProgram(v_shader, f_shader, true);
 
   // initialise automata
-  qca::elementary ca(window_width, window_height, qca::wolfram(110));
+  qca::elementary ca(window_width, window_height, qca::wolfram(73));
   ca.init_random();
 
   // initialise texture
@@ -138,14 +122,13 @@ int main(int argc, const char *argv[]) {
   timing::Timer loop_timer;
   timing::seconds loop_accumulator(0.0);
 
-  bool is_paused = false;
-  bool is_single_step = false;
-  int gen_count = 0;
   std::vector<uint8_t> blank_texture;
   blank_texture.resize(ca.field_width * ca.field_height * 3);
 
   std::vector<uint8_t> full_texture_data;
   full_texture_data.resize(ca.field_width * ca.field_height * 3);
+
+  game_state state;
 
   while (!glfwWindowShouldClose(window)) {
     loop_accumulator += loop_timer.getDelta();
@@ -156,173 +139,55 @@ int main(int argc, const char *argv[]) {
     processInput(window);
 
     // handle user input
-    // todo: reduce amount of code here?
-    if(
-      (glfwGetKey(window, key_pause.key_code) == GLFW_PRESS) &&
-      !key_pause.is_handled
-    ) {
-      is_paused = !is_paused;
-      key_pause.is_pressed = true;
-      key_pause.is_handled = true;
+    for (key &k : key_bindings) {
+      if (
+        (glfwGetKey(window, k.key_code) == GLFW_PRESS) &&
+        !k.is_handled
+      ) {
+        k.f(ca, state);
+        k.is_pressed = true;
+        k.is_handled = true;
+      } else if (glfwGetKey(window, k.key_code) == GLFW_RELEASE) {
+        k.is_pressed = false;
+        k.is_handled = false;
+      }
     }
 
-    if(glfwGetKey(window, key_pause.key_code) == GLFW_RELEASE) {
-      key_pause.is_pressed = false;
-      key_pause.is_handled = false;
-    }
-
-    if(
-      (glfwGetKey(window, key_step.key_code) == GLFW_PRESS) &&
-      !key_step.is_handled
-    ) {
-      is_paused = false;
-      is_single_step = true;
-      key_step.is_pressed = true;
-      key_step.is_handled = true;
-    }
-
-    if(glfwGetKey(window, key_step.key_code) == GLFW_RELEASE) {
-      key_step.is_pressed = false;
-      key_step.is_handled = false;
-    }
-
-    if(
-      (glfwGetKey(window, key_reset_single_0.key_code) == GLFW_PRESS) &&
-      !key_reset_single_0.is_handled
-    ) {
-      reset_texture(texture, ca.field_width, ca.field_height, blank_texture);
-      ca.reset();
-      ca.init_single_0();
-      gen_count = 0;
-      is_paused = false;
-      key_reset_single_0.is_pressed = true;
-      key_reset_single_0.is_handled = true;
-    }
-
-    if(glfwGetKey(window, key_reset_single_0.key_code) == GLFW_RELEASE) {
-      key_reset_single_0.is_pressed = false;
-      key_reset_single_0.is_handled = false;
-    }
-
-    if(
-      (glfwGetKey(window, key_reset_single_1.key_code) == GLFW_PRESS) &&
-      !key_reset_single_1.is_handled
-    ) {
-      reset_texture(texture, ca.field_width, ca.field_height, blank_texture);
-      ca.reset();
-      ca.init_single_1();
-      gen_count = 0;
-      is_paused = false;
-      key_reset_single_1.is_pressed = true;
-      key_reset_single_1.is_handled = true;
-    }
-
-    if(glfwGetKey(window, key_reset_single_1.key_code) == GLFW_RELEASE) {
-      key_reset_single_1.is_pressed = false;
-      key_reset_single_1.is_handled = false;
-    }
-
-    if(
-      (glfwGetKey(window, key_reset_alternate.key_code) == GLFW_PRESS) &&
-      !key_reset_alternate.is_handled
-    ) {
-      reset_texture(texture, ca.field_width, ca.field_height, blank_texture);
-      ca.reset();
-      ca.init_alternate();
-      gen_count = 0;
-      is_paused = false;
-      key_reset_alternate.is_pressed = true;
-      key_reset_alternate.is_handled = true;
-    }
-
-    if(glfwGetKey(window, key_reset_alternate.key_code) == GLFW_RELEASE) {
-      key_reset_alternate.is_pressed = false;
-      key_reset_alternate.is_handled = false;
-    }
-
-    if(
-      (glfwGetKey(window, key_reset_random.key_code) == GLFW_PRESS) &&
-      !key_reset_random.is_handled
-    ) {
-      reset_texture(texture, ca.field_width, ca.field_height, blank_texture);
-      ca.reset();
-      ca.init_random();
-      gen_count = 0;
-      is_paused = false;
-      key_reset_random.is_pressed = true;
-      key_reset_random.is_handled = true;
-    }
-
-    if(glfwGetKey(window, key_reset_random.key_code) == GLFW_RELEASE) {
-      key_reset_random.is_pressed = false;
-      key_reset_random.is_handled = false;
-    }
-
-    if(
-      (glfwGetKey(window, key_save.key_code) == GLFW_PRESS) &&
-      !key_save.is_handled
-    ) {
+    if (state.do_save_texture) {
+      std::stringstream ss;
+      ss << "out/" << state.wolfram_code << ".png";
       stbi_write_png(
-        "out.png", ca.field_width, ca.field_height, 3,
+        ss.str().c_str(), ca.field_width, ca.field_height, 3,
         full_texture_data.data(), ca.field_width * 3
       );
-      key_save.is_pressed = true;
-      key_save.is_handled = true;
+      state.do_save_texture = false;
     }
 
-    if(glfwGetKey(window, key_save.key_code) == GLFW_RELEASE) {
-      key_save.is_pressed = false;
-      key_save.is_handled = false;
+    if (state.do_reset_texture) {
+      reset_texture(texture, ca.field_width, ca.field_height, blank_texture);
+      state.do_reset_texture = false;
     }
 
-    if(
-      (glfwGetKey(window, key_next.key_code) == GLFW_PRESS) &&
-      !key_next.is_handled
-    ) {
-      wolfram_code++;
-      if (wolfram_code > 255) { wolfram_code = 0; }
-      ca.set_rules(qca::wolfram(wolfram_code));
-      std::cout << "Wolfram Code: " << wolfram_code << "\n";
-      key_next.is_pressed = true;
-      key_next.is_handled = true;
-    }
-
-    if(glfwGetKey(window, key_next.key_code) == GLFW_RELEASE) {
-      key_next.is_pressed = false;
-      key_next.is_handled = false;
-    }
-
-    if(
-      (glfwGetKey(window, key_prev.key_code) == GLFW_PRESS) &&
-      !key_prev.is_handled
-    ) {
-      wolfram_code--;
-      if (wolfram_code < 0) { wolfram_code = 255; }
-      ca.set_rules(qca::wolfram(wolfram_code));
-      std::cout << "Wolfram Code: " << wolfram_code << "\n";
-      key_prev.is_pressed = true;
-      key_prev.is_handled = true;
-    }
-
-    if(glfwGetKey(window, key_prev.key_code) == GLFW_RELEASE) {
-      key_prev.is_pressed = false;
-      key_prev.is_handled = false;
+    if (state.do_update_rule) {
+      ca.set_rules(qca::wolfram(state.wolfram_code));
+      std::cout << "Wolfram Code: " << state.wolfram_code << "\n";
+      state.do_update_rule = false;
     }
 
     // update loop
     while (loop_accumulator >= loop_timestep) {
-      if (gen_count >= ca.field_height) {
-        is_paused = true;
+      if (state.gen_count >= ca.field_height) {
+        state.is_paused = true;
       }
 
-      if (is_paused) {
+      if (state.is_paused) {
         loop_accumulator -= loop_timestep;
         continue;
       }
 
-      if (is_single_step) {
-        is_paused = true;
-        is_single_step = false;
+      if (state.is_single_step) {
+        state.is_paused = true;
+        state.is_single_step = false;
       }
 
       auto gen = ca.get();
@@ -330,19 +195,19 @@ int main(int argc, const char *argv[]) {
 
       std::vector<uint8_t> texture_data = qca::cells_to_colour(gen);
       for (int i = 0; i < texture_data.size(); ++i) {
-        const int index = (gen_count * ca.field_width * 3) + i;
+        const int index = (state.gen_count * ca.field_width * 3) + i;
         full_texture_data[index] = texture_data[i];
       }
 
       bindTexture(texture);
       glTexSubImage2D(
-        GL_TEXTURE_2D, 0, 0, gen_count, ca.field_width, 1,
+        GL_TEXTURE_2D, 0, 0, state.gen_count, ca.field_width, 1,
         GL_RGB, GL_UNSIGNED_BYTE, texture_data.data()
       );
       bindTexture({0});
 
       loop_accumulator -= loop_timestep;
-      gen_count++;
+      state.gen_count++;
     }
 
     // draw screen texture
