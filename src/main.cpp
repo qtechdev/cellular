@@ -183,6 +183,7 @@ int main(int argc, const char *argv[]) {
       ca.set_rules(qca::wolfram(state.wolfram_code));
       ca.reset();
       ca.init_random();
+      state.is_paused = false;
 
       state.do_update_rule = false;
     }
@@ -198,7 +199,6 @@ int main(int argc, const char *argv[]) {
           state.do_reset_texture = true;
           state.do_update_rule = true;
           state.new_code = state.wolfram_code + 1;
-          state.is_paused = false;
         } else {
           glfwSetWindowShouldClose(window, GLFW_TRUE);
           break;
@@ -222,7 +222,15 @@ int main(int argc, const char *argv[]) {
       std::vector<uint8_t> texture_data = qca::cells_to_colour(gen);
       for (int i = 0; i < texture_data.size(); ++i) {
         const int index = (state.gen_count * ca.field_width * 3) + i;
-        full_texture_data[index] = texture_data[i];
+
+        if (index >= full_texture_data.size()) {
+          std::cerr << "E: " << index << ", " << full_texture_data.size();
+          std::cerr << ". gen " << state.gen_count << ", rule ";
+          std::cerr << state.wolfram_code << "\n";
+          break;
+        }
+
+        full_texture_data[index] = texture_data.at(i);
       }
 
       bindTexture(texture);
