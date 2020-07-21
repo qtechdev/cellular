@@ -37,8 +37,14 @@ static constexpr int window_height = 200;
 static constexpr int gl_major_version = 3;
 static constexpr int gl_minor_version = 3;
 
+#define BATCH_MODE
 
+#ifndef BATCH_MODE
 constexpr timing::seconds loop_timestep(1.0/60.0);
+#else
+constexpr timing::seconds loop_timestep(1.0/6000.0);
+#endif
+
 
 void processInput(GLFWwindow *window);
 std::array<glm::mat4, 3> fullscreen_rect_matrices(const int w, const int h);
@@ -87,7 +93,10 @@ int main(int argc, const char *argv[]) {
   GLuint shader_program = createProgram(v_shader, f_shader, true);
 
   // initialise automata
-  qca::elementary ca(window_width, window_height, qca::wolfram(73));
+  game_state state;
+  qca::elementary ca(
+    window_width, window_height, qca::wolfram(state.wolfram_code)
+  );
   ca.init_random();
 
   // initialise texture
@@ -128,8 +137,6 @@ int main(int argc, const char *argv[]) {
   std::vector<uint8_t> full_texture_data;
   full_texture_data.resize(ca.field_width * ca.field_height * 3);
 
-  game_state state;
-
   while (!glfwWindowShouldClose(window)) {
     loop_accumulator += loop_timer.getDelta();
     loop_timer.tick(clock.get());
@@ -169,8 +176,14 @@ int main(int argc, const char *argv[]) {
     }
 
     if (state.do_update_rule) {
-      ca.set_rules(qca::wolfram(state.wolfram_code));
+      state.gen_count = 0;
+      state.wolfram_code = state.new_code;
       std::cout << "Wolfram Code: " << state.wolfram_code << "\n";
+
+      ca.set_rules(qca::wolfram(state.wolfram_code));
+      ca.reset();
+      ca.init_random();
+
       state.do_update_rule = false;
     }
 
@@ -178,6 +191,19 @@ int main(int argc, const char *argv[]) {
     while (loop_accumulator >= loop_timestep) {
       if (state.gen_count >= ca.field_height) {
         state.is_paused = true;
+
+        #ifdef BATCH_MODE
+        if (state.wolfram_code < 256) {
+          state.do_save_texture = true;
+          state.do_reset_texture = true;
+          state.do_update_rule = true;
+          state.new_code = state.wolfram_code + 1;
+          state.is_paused = false;
+        } else {
+          glfwSetWindowShouldClose(window, GLFW_TRUE);
+          break;
+        }
+        #endif
       }
 
       if (state.is_paused) {

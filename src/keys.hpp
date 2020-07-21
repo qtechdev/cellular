@@ -13,6 +13,7 @@ struct game_state {
   bool do_update_rule = false;
   int gen_count = 0;
   int wolfram_code = 0;
+  int new_code = 0;
 };
 
 using key_f = std::function<void(qca::elementary &ca, game_state &s)>;
@@ -77,16 +78,16 @@ static key key_save{
 static key key_next{
   GLFW_KEY_RIGHT_BRACKET , "]",
   [](qca::elementary &ca, game_state &s){
-    s.wolfram_code++;
-    if (s.wolfram_code > 255) { s.wolfram_code = 0; }
+    s.new_code = s.wolfram_code + 1;
+    if (s.new_code > 255) { s.new_code = 0; }
     s.do_update_rule = true;
   }
 };
 static key key_prev{
   GLFW_KEY_LEFT_BRACKET , "[",
   [](qca::elementary &ca, game_state &s){
-    s.wolfram_code--;
-    if (s.wolfram_code < 0) { s.wolfram_code = 255; }
+    s.new_code = s.wolfram_code - 1;
+    if (s.new_code < 0) { s.new_code = 255; }
     s.do_update_rule = true;
   }
 };
